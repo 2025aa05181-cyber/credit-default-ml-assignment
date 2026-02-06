@@ -1,10 +1,11 @@
 # run_training.py
 """
-This script trains all classification models once and
-prints a consolidated comparison table.
-The results will be reused in README and Streamlit UI.
+Train all ML models once on the Credit Card Default dataset
+and save the trained models for Streamlit inference.
 """
 
+import os
+import joblib
 import pandas as pd
 
 from model.data_loader import load_and_split_data
@@ -16,38 +17,56 @@ from model.random_forest_model import train_random_forest
 from model.xgboost_model import train_xgboost
 
 
-def run_all_models(dataset_path):
+# --------------------------------------------------
+# Create directory to store trained models
+# --------------------------------------------------
+MODEL_DIR = "saved_models"
+os.makedirs(MODEL_DIR, exist_ok=True)
+
+
+def main():
+    # ----------------------------------------------
+    # 1. Load dataset and split
+    # ----------------------------------------------
+    dataset_path = "credit_card_default.csv"
     X_train, X_test, y_train, y_test = load_and_split_data(dataset_path)
+
+    # ----------------------------------------------
+    # 2. Train models one by one
+    # ----------------------------------------------
+    models = {
+        "logistic": train_logistic_regression,
+        "decision_tree": train_decision_tree,
+        "knn": train_knn,
+        "naive_bayes": train_naive_bayes,
+        "random_forest": train_random_forest,
+        "xgboost": train_xgboost,
+    }
 
     results = []
 
-    model_runs = [
-        ("Logistic Regression", train_logistic_regression),
-        ("Decision Tree", train_decision_tree),
-        ("KNN", train_knn),
-        ("Naive Bayes", train_naive_bayes),
-        ("Random Forest", train_random_forest),
-        ("XGBoost", train_xgboost),
-    ]
+    for model_name, train_func in models.items():
+        print(f"\nTraining {model_name} model...")
+        trained_model, metrics = train_func(
+            X_train, X_test, y_train, y_test
+        )
 
-    for model_name, train_fn in model_runs:
-        print(f"Training {model_name}...")
-        _, metrics = train_fn(X_train, X_test, y_train, y_test)
+        # ------------------------------------------
+        # 3. SAVE trained model
+        # ------------------------------------------
+        model_path = os.path.join(MODEL_DIR, f"{model_name}.joblib")
+        joblib.dump(trained_model, model_path)
 
-        metrics["Model"] = model_name
-        results.append(metrics)
+        print(f"Saved model to: {model_path}")
+        results.append({"Model": model_name, **metrics})
 
-    results_df = pd.DataFrame(results)
-    results_df = results_df[
-        ["Model", "Accuracy", "AUC", "Precision", "Recall", "F1", "MCC"]
-    ]
-
-    return results_df
+    # ----------------------------------------------
+    # 4. Print metrics table (for your reference)
+    # ----------------------------------------------
+    metrics_df = pd.DataFrame(results)
+    print("\nFinal Model Metrics:\n")
+    print(metrics_df)
 
 
 if __name__ == "__main__":
-    dataset_csv = "credit_card_default.csv"  # <-- your dataset file name
-    metrics_table = run_all_models(dataset_csv)
-
-    print("\nFinal Model Comparison Table:\n")
-    print(metrics_table.to_string(index=False))
+    main()
