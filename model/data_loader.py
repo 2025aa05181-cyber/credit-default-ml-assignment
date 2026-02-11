@@ -5,7 +5,12 @@ def load_and_split_data(csv_path):
     raw_df = pd.read_csv(csv_path)
     target_column = "default.payment.next.month"
 
-    feature_matrix = raw_df.drop(columns=[target_column])
+    # Drop target and ID column
+    feature_matrix = raw_df.drop(
+        columns=[target_column, "ID"],
+        errors="ignore"
+    )
+
     target_vector = raw_df[target_column]
 
     features_train, features_test, labels_train, labels_test = train_test_split(
@@ -15,4 +20,5 @@ def load_and_split_data(csv_path):
         random_state=27,
         stratify=target_vector
     )
+
     return features_train, features_test, labels_train, labels_test
