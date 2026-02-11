@@ -110,6 +110,15 @@ if df is None:
 else:
     # Dynamic evaluation
     X_test = df.drop(columns=[TARGET_COL])
+
+    # Align features to training model
+    trained_features = model.feature_names_in_
+
+    # Keep only required columns
+    X_test = X_test.reindex(columns=trained_features)
+
+    # Fill any missing columns with 0
+    X_test = X_test.fillna(0)
     y_true = df[TARGET_COL]
 
     model = joblib.load(MODEL_FILES[model_name])
