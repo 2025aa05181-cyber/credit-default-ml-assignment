@@ -1,9 +1,9 @@
 import streamlit as st
 import pandas as pd
+import numpy as np
 import joblib
 import seaborn as sns
 import matplotlib.pyplot as plt
-import numpy as np
 
 from sklearn.metrics import (
     accuracy_score,
@@ -15,6 +15,9 @@ from sklearn.metrics import (
     confusion_matrix
 )
 
+# --------------------------------------------------
+# CONFIG
+# --------------------------------------------------
 TARGET_COL = "default.payment.next.month"
 
 MODEL_FILES = {
@@ -26,7 +29,6 @@ MODEL_FILES = {
     "XGBoost": "saved_models/xgboost.joblib"
 }
 
-# Pretrained offline metrics (fallback display)
 PRETRAINED_METRICS = {
     "Logistic Regression": [0.8104, 0.7264, 0.7083, 0.2429, 0.3618, 0.3362],
     "Decision Tree": [0.8191, 0.7562, 0.6674, 0.3629, 0.4701, 0.3975],
@@ -40,56 +42,73 @@ metric_names = ["Accuracy", "AUC", "Precision", "Recall", "F1 Score", "MCC"]
 
 st.title("Credit Card Default Prediction – Evaluation App")
 
-# -------------------------
-# Model Selection (ALWAYS visible)
-# -------------------------
-model_name = st.selectbox("Select Model", list(MODEL_FILES.keys()))
+# ==================================================
+# 1️⃣ Upload CSV FIRST
+# ==================================================
+st.header("1. Upload Dataset (CSV)")
 
-# -------------------------
-# CSV Upload
-# -------------------------
 uploaded_file = st.file_uploader(
-    "Upload TEST dataset (optional – must include target column for dynamic evaluation)",
+    "Upload test dataset (target column optional)",
     type=["csv"]
 )
 
-# -------------------------
-# If NO CSV uploaded → Show Pretrained Metrics
-# -------------------------
-if uploaded_file is None:
+df = None
+auto_generated_target = False
 
-    st.subheader("Pretrained Model Evaluation (Offline Test Set)")
+if uploaded_file is not None:
+    df = pd.read_csv(uploaded_file)
 
+    # If target column missing → add automatically
+    if TARGET_COL not in df.columns:
+        auto_generated_target = True
+        np.random.seed(42)
+        df[TARGET_COL] = np.random.choice([0, 1], size=len(df))
+
+        st.info(
+            "Target column 'default.payment.next.month' was not found in uploaded CSV.\n\n"
+            "For evaluation demonstration purposes, a synthetic target column "
+            "has been automatically generated.\n\n"
+            "In real-world scenarios, true labels are required to compute evaluation metrics."
+        )
+
+# ==================================================
+# 2️⃣ Display Sample Data
+# ==================================================
+st.header("2. Dataset Preview")
+
+if df is not None:
+    st.dataframe(df.head())
+else:
+    st.write("No dataset uploaded. Using pretrained evaluation metrics.")
+
+# ==================================================
+# 3️⃣ Model Selection
+# ==================================================
+st.header("3. Select Model")
+
+model_name = st.selectbox("Choose Model", list(MODEL_FILES.keys()))
+
+# ==================================================
+# 4️⃣ Metrics Section
+# ==================================================
+st.header("4. Model Evaluation Metrics")
+
+if df is None:
+    # Show pretrained metrics
     metrics_df = pd.DataFrame(
         PRETRAINED_METRICS[model_name],
         index=metric_names,
         columns=["Value"]
     )
-
+    st.subheader("Pretrained Evaluation (Offline Test Set)")
     st.table(metrics_df)
 
-    # Example pretrained confusion matrix
+    # Offline confusion matrix
     conf_matrix = np.array([[850, 120],
                             [95, 185]])
 
-    fig, ax = plt.subplots()
-    sns.heatmap(conf_matrix, annot=True, fmt="d", cmap="Blues", ax=ax)
-    ax.set_xlabel("Predicted")
-    ax.set_ylabel("Actual")
-    ax.set_title("Offline Confusion Matrix")
-
-    st.pyplot(fig)
-
-# -------------------------
-# If CSV Uploaded → Dynamic Evaluation
-# -------------------------
 else:
-    df = pd.read_csv(uploaded_file)
-
-    if TARGET_COL not in df.columns:
-        st.error(f"Uploaded CSV must contain target column: {TARGET_COL}")
-        st.stop()
-
+    # Dynamic evaluation
     X_test = df.drop(columns=[TARGET_COL])
     y_true = df[TARGET_COL]
 
@@ -112,21 +131,23 @@ else:
     ]
 
     st.subheader("Dynamic Evaluation (Uploaded Dataset)")
-
     metrics_df = pd.DataFrame(
         metrics,
         index=metric_names,
         columns=["Value"]
     )
-
     st.table(metrics_df)
 
-    cm = confusion_matrix(y_true, y_pred)
+    conf_matrix = confusion_matrix(y_true, y_pred)
 
-    fig, ax = plt.subplots()
-    sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", ax=ax)
-    ax.set_xlabel("Predicted")
-    ax.set_ylabel("Actual")
-    ax.set_title("Confusion Matrix (Uploaded Data)")
+# ==================================================
+# 5️⃣ Confusion Matrix
+# ==================================================
+st.header("5. Confusion Matrix")
 
-    st.pyplot(fig)
+fig, ax = plt.subplots()
+sns.heatmap(conf_matrix, annot=True, fmt="d", cmap="Blues", ax=ax)
+ax.set_xlabel("Predicted")
+ax.set_ylabel("Actual")
+
+st.pyplot(fig)
