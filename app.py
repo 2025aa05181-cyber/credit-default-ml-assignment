@@ -15,9 +15,9 @@ from sklearn.metrics import (
     confusion_matrix
 )
 
-# --------------------------------------------------
+# =====================================================
 # CONFIG
-# --------------------------------------------------
+# =====================================================
 TARGET_COL = "default.payment.next.month"
 
 MODEL_FILES = {
@@ -40,11 +40,13 @@ PRETRAINED_METRICS = {
 
 metric_names = ["Accuracy", "AUC", "Precision", "Recall", "F1 Score", "MCC"]
 
+st.set_page_config(page_title="Credit Default ML App", layout="centered")
+
 st.title("Credit Card Default Prediction – Evaluation App")
 
-# ==================================================
+# =====================================================
 # 1️⃣ Upload CSV FIRST
-# ==================================================
+# =====================================================
 st.header("1. Upload Dataset (CSV)")
 
 uploaded_file = st.file_uploader(
@@ -53,75 +55,80 @@ uploaded_file = st.file_uploader(
 )
 
 df = None
-auto_generated_target = False
 
 if uploaded_file is not None:
     df = pd.read_csv(uploaded_file)
 
-    # If target column missing → add automatically
+    # Auto-add target column if missing
     if TARGET_COL not in df.columns:
-        auto_generated_target = True
         np.random.seed(42)
         df[TARGET_COL] = np.random.choice([0, 1], size=len(df))
 
         st.info(
-            "Target column 'default.payment.next.month' was not found in uploaded CSV.\n\n"
+            "Target column was not found in the uploaded dataset.\n\n"
             "For evaluation demonstration purposes, a synthetic target column "
             "has been automatically generated.\n\n"
-            "In real-world scenarios, true labels are required to compute evaluation metrics."
+            "In real-world evaluation, true labels are required to compute metrics."
         )
 
-# ==================================================
-# 2️⃣ Display Sample Data
-# ==================================================
+# =====================================================
+# 2️⃣ Dataset Preview
+# =====================================================
 st.header("2. Dataset Preview")
 
 if df is not None:
     st.dataframe(df.head())
 else:
-    st.write("No dataset uploaded. Using pretrained evaluation metrics.")
+    st.write("No dataset uploaded. Showing pretrained evaluation results.")
 
-# ==================================================
+# =====================================================
 # 3️⃣ Model Selection
-# ==================================================
+# =====================================================
 st.header("3. Select Model")
 
 model_name = st.selectbox("Choose Model", list(MODEL_FILES.keys()))
 
-# ==================================================
-# 4️⃣ Metrics Section
-# ==================================================
+# =====================================================
+# 4️⃣ Model Evaluation Metrics
+# =====================================================
 st.header("4. Model Evaluation Metrics")
 
+# --------------------------
+# CASE 1: No CSV Uploaded
+# --------------------------
 if df is None:
-    # Show pretrained metrics
+
+    st.subheader("Pretrained Evaluation (Offline Test Set)")
+
     metrics_df = pd.DataFrame(
         PRETRAINED_METRICS[model_name],
         index=metric_names,
         columns=["Value"]
     )
-    st.subheader("Pretrained Evaluation (Offline Test Set)")
+
     st.table(metrics_df)
 
-    # Offline confusion matrix
     conf_matrix = np.array([[850, 120],
                             [95, 185]])
 
+# --------------------------
+# CASE 2: CSV Uploaded
+# --------------------------
 else:
-    # Dynamic evaluation
+
+    # Separate features and target
     X_test = df.drop(columns=[TARGET_COL])
-
-    # Align features to training model
-    trained_features = model.feature_names_in_
-
-    # Keep only required columns
-    X_test = X_test.reindex(columns=trained_features)
-
-    # Fill any missing columns with 0
-    X_test = X_test.fillna(0)
     y_true = df[TARGET_COL]
 
+    # Load trained model
     model = joblib.load(MODEL_FILES[model_name])
+
+    # Align feature names to training features
+    trained_features = model.feature_names_in_
+    X_test = X_test.reindex(columns=trained_features)
+    X_test = X_test.fillna(0)
+
+    # Predict
     y_pred = model.predict(X_test)
 
     if hasattr(model, "predict_proba"):
@@ -140,18 +147,20 @@ else:
     ]
 
     st.subheader("Dynamic Evaluation (Uploaded Dataset)")
+
     metrics_df = pd.DataFrame(
         metrics,
         index=metric_names,
         columns=["Value"]
     )
+
     st.table(metrics_df)
 
     conf_matrix = confusion_matrix(y_true, y_pred)
 
-# ==================================================
+# =====================================================
 # 5️⃣ Confusion Matrix
-# ==================================================
+# =====================================================
 st.header("5. Confusion Matrix")
 
 fig, ax = plt.subplots()
