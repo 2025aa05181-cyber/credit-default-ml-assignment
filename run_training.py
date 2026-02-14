@@ -1,7 +1,7 @@
 # run_training.py
 """
 Train all ML models once on the Credit Card Default dataset
-and save the trained models for Streamlit inference.
+and save trained models + feature order for Streamlit inference.
 """
 
 import os
@@ -15,7 +15,6 @@ from model.knn_model import train_knn
 from model.naive_bayes_model import train_naive_bayes
 from model.random_forest_model import train_random_forest
 from model.xgboost_model import train_xgboost
-
 
 # --------------------------------------------------
 # Create directory to store trained models
@@ -48,15 +47,28 @@ def main():
 
         model_path = os.path.join(MODEL_DIR, f"{model_name}.joblib")
 
+        # Save feature order
+        feature_columns = X_train.columns.tolist()
+
         # Special handling for Naive Bayes
         if model_name == "naive_bayes":
             scaler, nb_model = trained_model
             joblib.dump(
-                {"scaler": scaler, "model": nb_model},
+                {
+                    "model": nb_model,
+                    "scaler": scaler,
+                    "features": feature_columns
+                },
                 model_path
             )
         else:
-            joblib.dump(trained_model, model_path)
+            joblib.dump(
+                {
+                    "model": trained_model,
+                    "features": feature_columns
+                },
+                model_path
+            )
 
         print(f"Saved model to: {model_path}")
         results.append({"Model": model_name, **metrics})

@@ -41,11 +41,10 @@ PRETRAINED_METRICS = {
 metric_names = ["Accuracy", "AUC", "Precision", "Recall", "F1 Score", "MCC"]
 
 st.set_page_config(page_title="Credit Default ML App", layout="centered")
-
 st.title("Credit Card Default Prediction – Evaluation App")
 
 # =====================================================
-# 1️⃣ Upload CSV FIRST
+# 1️⃣ Upload CSV
 # =====================================================
 st.header("1. Upload Dataset (CSV)")
 
@@ -59,15 +58,13 @@ df = None
 if uploaded_file is not None:
     df = pd.read_csv(uploaded_file)
 
-    # Auto-add target column if missing
     if TARGET_COL not in df.columns:
         np.random.seed(42)
         df[TARGET_COL] = np.random.choice([0, 1], size=len(df))
 
         st.info(
-            "Target column was not found in the uploaded dataset.\n\n"
-            "For evaluation demonstration purposes, a synthetic target column "
-            "has been automatically generated."
+            "Target column not found. A synthetic column was generated "
+            "for evaluation demonstration."
         )
 
 # =====================================================
@@ -84,69 +81,46 @@ else:
 # 3️⃣ Model Selection
 # =====================================================
 st.header("3. Select Model")
-
 model_name = st.selectbox("Choose Model", list(MODEL_FILES.keys()))
 
 # =====================================================
-# 4️⃣ Model Evaluation Metrics
+# 4️⃣ Evaluation
 # =====================================================
 st.header("4. Model Evaluation Metrics")
 
-# --------------------------
-# CASE 1: No CSV Uploaded
-# --------------------------
 if df is None:
-
     st.subheader("Pretrained Evaluation (Offline Test Set)")
-
     metrics_df = pd.DataFrame(
         PRETRAINED_METRICS[model_name],
         index=metric_names,
         columns=["Value"]
     )
-
     st.table(metrics_df)
-
     conf_matrix = np.array([[850, 120],
                             [95, 185]])
 
-# --------------------------
-# CASE 2: CSV Uploaded
-# --------------------------
 else:
-
-    # Separate features and target
     X_test = df.drop(columns=[TARGET_COL])
     y_true = df[TARGET_COL]
 
-    # Load model
     loaded_obj = joblib.load(MODEL_FILES[model_name])
 
-    # Handle Naive Bayes (scaler + model)
-    if model_name == "Naive Bayes":
-        scaler = loaded_obj["scaler"]
-        model = loaded_obj["model"]
-    else:
-        model = loaded_obj
+    model = loaded_obj["model"]
+    trained_features = loaded_obj["features"]
 
-    # Ensure column order consistency
-    X_test = X_test.reindex(sorted(X_test.columns), axis=1)
+    # Align columns exactly as training
+    X_test = X_test.reindex(columns=trained_features)
     X_test = X_test.fillna(0)
 
-    # Predict
+    # Handle Naive Bayes scaling
     if model_name == "Naive Bayes":
-        X_test_scaled = scaler.transform(X_test)
-        y_pred = model.predict(X_test_scaled)
-    else:
-        y_pred = model.predict(X_test)
+        scaler = loaded_obj["scaler"]
+        X_test = scaler.transform(X_test)
 
-    # Probability for AUC
+    y_pred = model.predict(X_test)
+
     if hasattr(model, "predict_proba"):
-        if model_name == "Naive Bayes":
-            y_prob = model.predict_proba(X_test_scaled)[:, 1]
-        else:
-            y_prob = model.predict_proba(X_test)[:, 1]
-
+        y_prob = model.predict_proba(X_test)[:, 1]
         auc = roc_auc_score(y_true, y_prob)
     else:
         auc = "NA"
@@ -167,7 +141,6 @@ else:
         index=metric_names,
         columns=["Value"]
     )
-
     st.table(metrics_df)
 
     conf_matrix = confusion_matrix(y_true, y_pred)
@@ -181,5 +154,4 @@ fig, ax = plt.subplots()
 sns.heatmap(conf_matrix, annot=True, fmt="d", cmap="Blues", ax=ax)
 ax.set_xlabel("Predicted")
 ax.set_ylabel("Actual")
-
 st.pyplot(fig)
