@@ -120,19 +120,35 @@ else:
     X_test = df.drop(columns=[TARGET_COL])
     y_true = df[TARGET_COL]
 
-    # Load trained model
-    model = joblib.load(MODEL_FILES[model_name])
+    # Load model safely
+    loaded_obj = joblib.load(MODEL_FILES[model_name])
 
-    # Align feature names to training features
+    # Special handling for Naive Bayes
+    if model_name == "Naive Bayes":
+        scaler = loaded_obj["scaler"]
+        model = loaded_obj["model"]
+    else:
+        model = loaded_obj
+
+    # Align feature names
     trained_features = model.feature_names_in_
     X_test = X_test.reindex(columns=trained_features)
     X_test = X_test.fillna(0)
 
     # Predict
-    y_pred = model.predict(X_test)
+    if model_name == "Naive Bayes":
+        X_test_scaled = scaler.transform(X_test)
+        y_pred = model.predict(X_test_scaled)
+    else:
+        y_pred = model.predict(X_test)
 
+    # Probability
     if hasattr(model, "predict_proba"):
-        y_prob = model.predict_proba(X_test)[:, 1]
+        if model_name == "Naive Bayes":
+            y_prob = model.predict_proba(X_test_scaled)[:, 1]
+        else:
+            y_prob = model.predict_proba(X_test)[:, 1]
+
         auc = roc_auc_score(y_true, y_prob)
     else:
         auc = "NA"

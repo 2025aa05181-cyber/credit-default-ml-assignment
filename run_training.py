@@ -25,15 +25,9 @@ os.makedirs(MODEL_DIR, exist_ok=True)
 
 
 def main():
-    # ----------------------------------------------
-    # 1. Load dataset and split
-    # ----------------------------------------------
     dataset_path = "credit_card_default.csv"
     X_train, X_test, y_train, y_test = load_and_split_data(dataset_path)
 
-    # ----------------------------------------------
-    # 2. Train models one by one
-    # ----------------------------------------------
     models = {
         "logistic": train_logistic_regression,
         "decision_tree": train_decision_tree,
@@ -47,22 +41,26 @@ def main():
 
     for model_name, train_func in models.items():
         print(f"\nTraining {model_name} model...")
+
         trained_model, metrics = train_func(
             X_train, X_test, y_train, y_test
         )
 
-        # ------------------------------------------
-        # 3. SAVE trained model
-        # ------------------------------------------
         model_path = os.path.join(MODEL_DIR, f"{model_name}.joblib")
-        joblib.dump(trained_model, model_path)
+
+        # Special handling for Naive Bayes
+        if model_name == "naive_bayes":
+            scaler, nb_model = trained_model
+            joblib.dump(
+                {"scaler": scaler, "model": nb_model},
+                model_path
+            )
+        else:
+            joblib.dump(trained_model, model_path)
 
         print(f"Saved model to: {model_path}")
         results.append({"Model": model_name, **metrics})
 
-    # ----------------------------------------------
-    # 4. Print metrics table (for your reference)
-    # ----------------------------------------------
     metrics_df = pd.DataFrame(results)
     print("\nFinal Model Metrics:\n")
     print(metrics_df)
