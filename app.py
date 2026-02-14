@@ -67,8 +67,7 @@ if uploaded_file is not None:
         st.info(
             "Target column was not found in the uploaded dataset.\n\n"
             "For evaluation demonstration purposes, a synthetic target column "
-            "has been automatically generated.\n\n"
-            "In real-world evaluation, true labels are required to compute metrics."
+            "has been automatically generated."
         )
 
 # =====================================================
@@ -120,19 +119,18 @@ else:
     X_test = df.drop(columns=[TARGET_COL])
     y_true = df[TARGET_COL]
 
-    # Load model safely
+    # Load model
     loaded_obj = joblib.load(MODEL_FILES[model_name])
 
-    # Special handling for Naive Bayes
+    # Handle Naive Bayes (scaler + model)
     if model_name == "Naive Bayes":
         scaler = loaded_obj["scaler"]
         model = loaded_obj["model"]
     else:
         model = loaded_obj
 
-    # Align feature names
-    trained_features = model.feature_names_in_
-    X_test = X_test.reindex(columns=trained_features)
+    # Ensure column order consistency
+    X_test = X_test.reindex(sorted(X_test.columns), axis=1)
     X_test = X_test.fillna(0)
 
     # Predict
@@ -142,7 +140,7 @@ else:
     else:
         y_pred = model.predict(X_test)
 
-    # Probability
+    # Probability for AUC
     if hasattr(model, "predict_proba"):
         if model_name == "Naive Bayes":
             y_prob = model.predict_proba(X_test_scaled)[:, 1]
