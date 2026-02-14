@@ -1,7 +1,14 @@
-# Credit Card Default Prediction - ML Assignment 2
+# The objective of this project is to build and compare multiple machine learning classification models to predict whether a credit card customer will default on their payment in the next month. The task is formulated as a binary classification problem where the target variable default.payment.next.month indicates default (1) or no default (0). The project also includes development of an interactive Streamlit web application for model evaluation and deployment.
 
-This repository contains implementation of multiple classification models
-and a Streamlit application as part of BITS M.Tech ML Assignment 2.
+The project uses the UCI Credit Card Default dataset, which contains demographic details, credit limits, repayment history, bill statements, and previous payment amounts of 30,000 customers. After removing the non-predictive ID column, 23 input features are used for model training. The dataset represents a real-world financial risk assessment problem and is suitable for evaluating classification algorithms.
+
+How to Use the Streamlit App :
+Open the deployed Streamlit application link.
+Upload a test dataset (CSV format). The target column is optional.
+View the uploaded dataset preview.
+Select any one of the six trained models from the dropdown.
+The app will display evaluation metrics and a confusion matrix.
+If no dataset is uploaded, pretrained evaluation results are shown by default.
 
 
 | ML Model                 | Accuracy | AUC    | Precision | Recall | F1 Score | MCC    |
